@@ -89,6 +89,8 @@ def parse_feature_slug(value: str) -> FeatureIdentity:
 def validate_feature_request(
     project_directory: Path,
     feature_slug: str,
+    *,
+    force: bool = False,
 ) -> FeatureRequest:
     identity = parse_feature_slug(feature_slug)
     if identity.slug in RESERVED_FEATURE_SLUGS:
@@ -114,7 +116,11 @@ def validate_feature_request(
         ) from error
 
     try:
-        metadata = validate_project_metadata(raw_metadata)
+        # `force` still requires the metadata to be structurally sound; only the template
+        # compatibility rule is skipped, because that is the single check the user overrides.
+        metadata = validate_project_metadata(
+            raw_metadata, enforce_template_version=not force
+        )
         validate_android_package(metadata.package_name, "metadata package_name")
         validate_android_application_id(metadata.application_id)
     except (MetadataError, InputValidationError) as error:
@@ -176,6 +182,8 @@ def render_reserved_feature(
 def prepare_feature_plan(
     project_directory: Path,
     request: FeatureRequest,
+    *,
+    force: bool = False,
 ) -> FeaturePlan:
     new_files = _render_feature_templates(request)
     original_files: dict[Path, bytes] = {}
@@ -183,6 +191,7 @@ def prepare_feature_plan(
         project_directory,
         request,
         original_files,
+        force=force,
     )
     _validate_feature_plan(
         project_directory,
@@ -509,6 +518,8 @@ def _render_feature_project_updates(
     project_directory: Path,
     request: FeatureRequest,
     original_files: dict[Path, bytes],
+    *,
+    force: bool = False,
 ) -> dict[Path, bytes]:
     identity = request.identity
     slug = identity.slug
@@ -530,7 +541,8 @@ def _render_feature_project_updates(
     metadata_path = Path(_METADATA_FILENAME)
     try:
         current_metadata = validate_project_metadata(
-            json.loads(read_project_file(metadata_path))
+            json.loads(read_project_file(metadata_path)),
+            enforce_template_version=not force,
         )
     except (json.JSONDecodeError, MetadataError) as error:
         raise FeatureValidationError(

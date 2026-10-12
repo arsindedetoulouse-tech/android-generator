@@ -199,7 +199,11 @@ class CreateProjectTest(unittest.TestCase):
             sentinel.write_text("user data", encoding="utf-8")
             stderr = io.StringIO()
 
-            with contextlib.chdir(project), contextlib.redirect_stderr(stderr):
+            with (
+                contextlib.chdir(project),
+                contextlib.redirect_stdout(io.StringIO()),
+                contextlib.redirect_stderr(stderr),
+            ):
                 with self.assertRaises(SystemExit) as error:
                     main(
                         [
@@ -271,7 +275,11 @@ class CreateProjectTest(unittest.TestCase):
             project = Path(temp)
             stderr = io.StringIO()
 
-            with contextlib.chdir(project), contextlib.redirect_stderr(stderr):
+            with (
+                contextlib.chdir(project),
+                contextlib.redirect_stdout(io.StringIO()),
+                contextlib.redirect_stderr(stderr),
+            ):
                 with self.assertRaises(SystemExit) as error:
                     main(
                         [
@@ -373,6 +381,7 @@ class CreateProjectTest(unittest.TestCase):
 
             with (
                 contextlib.chdir(project),
+                contextlib.redirect_stdout(io.StringIO()),
                 contextlib.redirect_stderr(stderr),
                 patch(
                     "android_skeleton.cli.subprocess.run",

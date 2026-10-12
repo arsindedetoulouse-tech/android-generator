@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import os
 import subprocess
 import sys
@@ -13,6 +14,8 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from android_sdk_fixture import create_fake_sdk
+from android_skeleton import __version__
+from android_skeleton import version_check as vc
 from android_skeleton.cli import main
 from android_skeleton.validation import (
     InputValidationError,
@@ -153,6 +156,7 @@ class SdkPreflightTest(unittest.TestCase):
 
         with (
             contextlib.chdir(project),
+            contextlib.redirect_stdout(io.StringIO()),
             contextlib.redirect_stderr(stderr),
             patch("android_skeleton.cli.subprocess.run") as run,
             self.assertRaises(SystemExit) as error,
@@ -185,6 +189,7 @@ class SdkPreflightTest(unittest.TestCase):
 
         with (
             contextlib.chdir(project),
+            contextlib.redirect_stdout(io.StringIO()),
             contextlib.redirect_stderr(stderr),
             patch("android_skeleton.cli.subprocess.run") as run,
             self.assertRaises(SystemExit),
@@ -213,6 +218,7 @@ class SdkPreflightTest(unittest.TestCase):
 
         with (
             contextlib.chdir(project),
+            contextlib.redirect_stdout(io.StringIO()),
             contextlib.redirect_stderr(stderr),
             patch("android_skeleton.cli.subprocess.run") as run,
             self.assertRaises(SystemExit),
@@ -375,6 +381,186 @@ class SdkPreflightTest(unittest.TestCase):
 
         self.assertEqual(0, result)
         self.assertIn("not an Android SDK", stderr.getvalue())
+
+
+class GeneratorVersionPreflightTest(unittest.TestCase):
+    """`create` must say which generator writes the project before it writes anything."""
+
+    def setUp(self) -> None:
+        self._temp = tempfile.TemporaryDirectory(prefix="version-preflight-")
+        self.addCleanup(self._temp.cleanup)
+        self.root = Path(self._temp.name)
+        # `cli` binds the check entry point at import time, so that is what has to be replaced.
+        patcher = patch("android_skeleton.cli.collect_checks", return_value=[])
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        # A configured SDK keeps the unrelated SDK warning out of the captured output.
+        sdk_host = tempfile.TemporaryDirectory(prefix="fake-android-sdk-")
+        self.addCleanup(sdk_host.cleanup)
+        sdk_patcher = patch.dict(
+            os.environ,
+            {"ANDROID_HOME": str(create_fake_sdk(Path(sdk_host.name)))},
+        )
+        sdk_patcher.start()
+        self.addCleanup(sdk_patcher.stop)
+
+    def _create(
+        self,
+        project: Path,
+        *extra: str,
+        stdout: io.StringIO | None = None,
+        stderr: io.StringIO | None = None,
+    ) -> int:
+        with (
+            contextlib.chdir(project),
+            contextlib.redirect_stdout(stdout if stdout is not None else io.StringIO()),
+            contextlib.redirect_stderr(stderr if stderr is not None else io.StringIO()),
+        ):
+            return main(
+                [
+                    "create",
+                    "--package",
+                    "com.example.sample",
+                    "--application-id",
+                    "com.example.sample.app",
+                    *extra,
+                ]
+            )
+
+    def test_the_generator_version_is_printed_before_files_are_written(self) -> None:
+        project = self.root / "header"
+        project.mkdir()
+        stdout = io.StringIO()
+
+        result = self._create(project, stdout=stdout)
+
+        self.assertEqual(0, result)
+        output = stdout.getvalue()
+        self.assertIn(__version__, output)
+        self.assertIn("Android template", output)
+        self.assertLess(
+            output.index("Android template"),
+            output.index("Created Android project"),
+        )
+
+    def test_a_newer_release_warns_but_does_not_block_generation(self) -> None:
+        project = self.root / "warned"
+        project.mkdir()
+        stdout, stderr = io.StringIO(), io.StringIO()
+        checks = [
+            vc.VersionCheck(
+                "github-release", vc._NEWER_AVAILABLE, warning="0.9.0 is available"
+            )
+        ]
+
+        with patch("android_skeleton.cli.collect_checks", return_value=checks):
+            result = self._create(project, stdout=stdout, stderr=stderr)
+
+        self.assertEqual(0, result)
+        self.assertIn("0.9.0 is available", stderr.getvalue())
+        self.assertTrue((project / "settings.gradle.kts").is_file())
+
+    def test_an_unreachable_network_is_reported_and_generation_continues(self) -> None:
+        project = self.root / "offline"
+        project.mkdir()
+        stderr = io.StringIO()
+        checks = [vc.VersionCheck("github-release", vc._UNVERIFIED)]
+
+        with patch("android_skeleton.cli.collect_checks", return_value=checks):
+            result = self._create(project, stderr=stderr)
+
+        self.assertEqual(0, result)
+        self.assertIn("Could not confirm", stderr.getvalue())
+        self.assertTrue((project / "settings.gradle.kts").is_file())
+
+    def test_nothing_is_printed_when_every_check_is_silent(self) -> None:
+        project = self.root / "silent"
+        project.mkdir()
+        stderr = io.StringIO()
+
+        result = self._create(project, stderr=stderr)
+
+        self.assertEqual(0, result)
+        self.assertEqual("", stderr.getvalue())
+
+    def test_add_feature_refuses_a_project_of_another_template(self) -> None:
+        project = self.root / "foreign"
+        project.mkdir()
+        self.assertEqual(0, self._create(project))
+        metadata_path = project / ".android-skeleton.json"
+        metadata = json.loads(metadata_path.read_text())
+        metadata["template_version"] = "1.1.0"
+        metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+        stderr = io.StringIO()
+
+        with (
+            contextlib.chdir(project),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(stderr),
+            self.assertRaises(SystemExit) as error,
+        ):
+            main(["add-feature", "user-profile"])
+
+        self.assertEqual(2, error.exception.code)
+        message = stderr.getvalue()
+        self.assertIn("1.1.0", message)
+        self.assertIn("--force", message)
+        self.assertFalse((project / "feature/user-profile").exists())
+
+    def test_add_feature_proceeds_when_forced(self) -> None:
+        project = self.root / "forced"
+        project.mkdir()
+        self.assertEqual(0, self._create(project))
+        metadata_path = project / ".android-skeleton.json"
+        metadata = json.loads(metadata_path.read_text())
+        metadata["template_version"] = "1.1.0"
+        metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+        stderr = io.StringIO()
+
+        with (
+            contextlib.chdir(project),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(stderr),
+        ):
+            result = main(["add-feature", "user-profile", "--force"])
+
+        self.assertEqual(0, result)
+        self.assertIn("--force", stderr.getvalue())
+        self.assertTrue((project / "feature/user-profile").is_dir())
+
+    def test_force_on_create_does_not_change_the_generated_project(self) -> None:
+        project = self.root / "create-force"
+        project.mkdir()
+        forced = self.root / "create-plain"
+        forced.mkdir()
+
+        self.assertEqual(0, self._create(project, "--force"))
+        self.assertEqual(0, self._create(forced))
+
+        def snapshot(root: Path) -> set[str]:
+            return {
+                path.relative_to(root).as_posix()
+                for path in root.rglob("*")
+                if path.is_file()
+            }
+
+        self.assertEqual(snapshot(forced), snapshot(project))
+
+    def test_the_warning_queue_does_not_leak_into_the_next_run(self) -> None:
+        first = self.root / "first"
+        first.mkdir()
+        stderr = io.StringIO()
+        checks = [vc.VersionCheck("github-release", vc._NEWER_AVAILABLE, warning="stale")]
+
+        with patch("android_skeleton.cli.collect_checks", return_value=checks):
+            self._create(first, stderr=stderr)
+        self.assertIn("stale", stderr.getvalue())
+
+        second = self.root / "second"
+        second.mkdir()
+        stderr = io.StringIO()
+        self._create(second, stderr=stderr)
+        self.assertEqual("", stderr.getvalue())
 
 
 if __name__ == "__main__":

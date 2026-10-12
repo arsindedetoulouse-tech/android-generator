@@ -61,7 +61,29 @@ class FeatureValidationTest(unittest.TestCase):
 
             self.assertEqual(2, error.exception.code)
             self.assertEqual(before, self._snapshot(project))
-            self.assertIn("Unsupported template version", stderr.getvalue())
+            message = stderr.getvalue()
+            self.assertIn("template 9.0.0", message)
+            self.assertIn("--force", message)
+
+    def test_force_proceeds_with_a_project_of_another_template(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="forced-template-") as temp:
+            project = self._create_project(Path(temp))
+            metadata_path = project / ".android-skeleton.json"
+            metadata = json.loads(metadata_path.read_text())
+            metadata["template_version"] = "9.0.0"
+            metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+            stderr = io.StringIO()
+
+            with (
+                contextlib.chdir(project),
+                contextlib.redirect_stdout(io.StringIO()),
+                contextlib.redirect_stderr(stderr),
+            ):
+                result = main(["add-feature", "user-profile", "--force"])
+
+            self.assertEqual(0, result)
+            self.assertIn("--force", stderr.getvalue())
+            self.assertTrue((project / "feature/user-profile").is_dir())
 
     def test_add_feature_rejects_invalid_slug_before_writing(self) -> None:
         with tempfile.TemporaryDirectory(prefix="invalid-feature-") as temp:

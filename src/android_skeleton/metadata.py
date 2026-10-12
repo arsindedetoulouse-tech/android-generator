@@ -55,6 +55,7 @@ def validate_project_metadata(
     *,
     cli_version: str = __version__,
     supported_template_versions: Mapping[str, str] = SUPPORTED_TEMPLATE_VERSIONS,
+    enforce_template_version: bool = True,
 ) -> ProjectMetadata:
     if not isinstance(value, dict):
         raise MetadataError("Project metadata must be a JSON object")
@@ -62,16 +63,19 @@ def validate_project_metadata(
         raise MetadataError(f"Unsupported metadata schema version: {value.get('schema_version')!r}")
 
     template_version = _required_string(value, "template_version")
-    minimum_cli_version = supported_template_versions.get(template_version)
-    if minimum_cli_version is None:
-        raise MetadataError(f"Unsupported template version: {template_version}")
-    if _parse_version(cli_version) < _parse_version(minimum_cli_version):
-        raise MetadataError(
-            f"Template {template_version} requires CLI version {minimum_cli_version} or newer"
-        )
+    parse_version(template_version)
+    if enforce_template_version:
+        minimum_cli_version = supported_template_versions.get(template_version)
+        if minimum_cli_version is None:
+            raise MetadataError(f"Unsupported template version: {template_version}")
+        if parse_version(cli_version) < parse_version(minimum_cli_version):
+            raise MetadataError(
+                f"Template {template_version} requires CLI version "
+                f"{minimum_cli_version} or newer"
+            )
 
     metadata_cli_version = _required_string(value, "cli_version")
-    _parse_version(metadata_cli_version)
+    parse_version(metadata_cli_version)
     options = value.get("options")
     if not isinstance(options, dict):
         raise MetadataError("Metadata field 'options' must be a JSON object")
@@ -98,7 +102,8 @@ def _required_string(value: Mapping[str, object], key: str) -> str:
     return field
 
 
-def _parse_version(value: str) -> tuple[int, int, int]:
+def parse_version(value: str) -> tuple[int, int, int]:
+    """Parse a semantic version into a comparable tuple."""
     match = _VERSION_PATTERN.fullmatch(value)
     if match is None:
         raise MetadataError(f"Invalid semantic version: {value!r}")
