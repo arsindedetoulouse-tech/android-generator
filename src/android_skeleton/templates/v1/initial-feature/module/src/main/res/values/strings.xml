@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Greeting of the start screen. Resource names carry the feature slug because the names of
+         every feature library are merged into the application. -->
+    <string name="__FEATURE_STRING_PREFIX___title">Welcome</string>
+    <string name="__FEATURE_STRING_PREFIX___refresh">Refresh</string>
+    <string name="__FEATURE_STRING_PREFIX___error">Could not load the data.</string>
+    <string name="__FEATURE_STRING_PREFIX___hint">The value below comes from the shipped data stub. Pull to refresh or press Refresh.</string>
+</resources>

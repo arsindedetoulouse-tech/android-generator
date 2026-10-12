@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="__FEATURE_STRING_PREFIX___title">__FEATURE_TITLE_XML__</string>
+    <string name="__FEATURE_STRING_PREFIX___refresh">Refresh</string>
+    <string name="__FEATURE_STRING_PREFIX___empty">Nothing to show yet.</string>
+    <string name="__FEATURE_STRING_PREFIX___error">Could not load the data.</string>
+    <string name="__FEATURE_STRING_PREFIX___back">Back</string>
+</resources>

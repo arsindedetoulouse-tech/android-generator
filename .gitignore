@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[codz]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Editors and IDEs
+.idea/
+*.iml
+.vscode/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Generated projects and local machine state
+local.properties
+.gradle/
+.kotlin/

@@ -1,0 +1,8 @@
+# The Android template ships batch and shell scripts as payload: the generator copies these files
+# byte for byte into every generated project, so their line endings must not depend on the
+# machine that clones this repository.
+*.bat text eol=crlf
+gradlew text eol=lf
+
+# Binary payload that must survive a checkout unchanged.
+*.jar binary

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "android-skeleton"
+version = "0.3.0"
+description = "Generate modular Android application projects"
+requires-python = ">=3.11"
+
+[project.scripts]
+android-skeleton = "android_skeleton.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+android_skeleton = ["templates/**/*"]
