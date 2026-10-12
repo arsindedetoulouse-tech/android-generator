@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import glob
 import subprocess
 import sys
 import tomllib
@@ -22,10 +23,37 @@ class PackageContractTest(unittest.TestCase):
             "android_skeleton.cli:main",
             project["project"]["scripts"]["android-skeleton"],
         )
-        self.assertIn(
-            "templates/**/*",
-            project["tool"]["setuptools"]["package-data"]["android_skeleton"],
-        )
+        patterns = project["tool"]["setuptools"]["package-data"]["android_skeleton"]
+
+        self.assertIn("templates/**/*", patterns)
+
+    def test_every_template_file_is_covered_by_the_package_data(self) -> None:
+        """No template file may be dropped when the package is installed.
+
+        setuptools applies these patterns with glob semantics, which do not match a leading dot.
+        A pattern change that stops covering a file fails only for an installed package, so the
+        coverage is checked here instead of being discovered by a user.
+        """
+        with (ROOT / "pyproject.toml").open("rb") as project_file:
+            patterns = tomllib.load(project_file)["tool"]["setuptools"]["package-data"][
+                "android_skeleton"
+            ]
+
+        package_root = ROOT / "src" / "android_skeleton"
+        template_root = package_root / "templates"
+        expected = {
+            path.relative_to(package_root).as_posix()
+            for path in template_root.rglob("*")
+            if path.is_file()
+        }
+        packaged = {
+            Path(match).relative_to(package_root).as_posix()
+            for pattern in patterns
+            for match in glob.glob(str(package_root / pattern), recursive=True)
+            if Path(match).is_file()
+        }
+
+        self.assertEqual(set(), expected - packaged)
 
     def test_template_manifest_is_available_as_package_resource(self) -> None:
         manifest = files("android_skeleton").joinpath(

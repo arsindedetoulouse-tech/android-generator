@@ -19,4 +19,6 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-android_skeleton = ["templates/**/*"]
+# `templates/**/*` alone silently drops the template's own `.gitignore`, because a glob does not match
+# a leading dot. Every generated project ships that file, so it must be named explicitly.
+android_skeleton = ["templates/**/*", "templates/**/.*"]
