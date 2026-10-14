@@ -6,7 +6,22 @@ build-backend = "setuptools.build_meta"
 name = "android-skeleton"
 version = "0.3.0"
 description = "Generate modular Android application projects"
+readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "arsindedetoulouse-tech" }]
+keywords = ["android", "kotlin", "scaffold", "generator", "gradle", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Build Tools",
+]
 
 [project.scripts]
 android-skeleton = "android_skeleton.cli:main"

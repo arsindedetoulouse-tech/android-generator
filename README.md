@@ -1,36 +1,40 @@
 # android-skeleton
 
-CLI для создания чистых много-модульных Android-приложений. Требуется Python 3.11 или новее; runtime-зависимостей Python нет. Android SDK нужен только для сборки сгенерированного проекта.
+> Russian version of this document: [README.ru.md](README.ru.md).
 
-Шаблон содержит `app`, `app:navigation`, `build-logic`, `common:domain`, `common:data`, `common:presentation`, `common:testing`, `core:navigation`, `core:datastore`, `core:designsystem`, а также `feature:home` и `feature:home-api` — начальный экран создаётся как обычная фича, потому что он ничем не отличается от остальных назначений. В нём настроены Jetpack Compose Material 3, Navigation 3, Orbit MVI, Koin, Gradle Kotlin DSL и version catalog. Слой `presentation` с DI-регистрациями и заглушкой данных живёт внутри каждого feature-модуля, а слои `domain` и `data` — в общих `common:domain` и `common:data`: ими пользуются все фичи, поэтому каждый набор тисел лежит в своём пакете слоя (`domain/<feature>`, `data/<feature>`) и одноимённые типы разных фич не сталкиваются.
+A CLI that creates clean, multi-module Android applications. Python 3.11 or newer is required; the package itself has no Python runtime dependencies. The Android SDK is only needed to build a generated project.
 
-Навигация построена на Navigation 3. `:core:navigation` задаёт типизированный контракт маршрутов (`AppRoute`), навигатор, который является единственным местом изменения back stack, и состояние навигации, переживающее конфигурационные изменения и смерть процесса. Маршруты объявляются как `@Serializable`-объекты, реализующие `AppRoute`, поэтому back stack восстанавливается без строковых констант. `app:navigation` отвечает только за сборку графа из вкладок: app-owned destination в проекте нет, каждый экран приходит из feature-модуля.
+The template ships `app`, `app:navigation`, `build-logic`, `common:domain`, `common:data`, `common:presentation`, `common:testing`, `core:navigation`, `core:datastore`, `core:designsystem`, plus `feature:home` and `feature:home-api`. The starting screen is created as an ordinary feature, because it is no different from any other destination. Jetpack Compose Material 3, Navigation 3, Orbit MVI, Koin, Gradle Kotlin DSL and a version catalog are configured out of the box. The `presentation` layer with its DI registrations and stub data source lives inside each feature module, while the `domain` and `data` layers live in the shared `common:domain` and `common:data` modules: every feature uses them, so each set of types sits in its own layer package (`domain/<feature>`, `data/<feature>`) and identically named types of different features never collide.
 
-Цепочка данных офлайн-первая и одинакова для всех фич. Источник данных разделён на `loadLocal()` (кэш в Preferences DataStore), `loadRemote()` и `saveLocal()`; репозиторий загружает удалённые данные, сохраняет их в кэш, а при отказе отдаёт кэш и только без кэша пробрасывает ошибку. Начальный экран показывает приветствие по центру и значение из заглушки `feature/<slug>/src/main/assets/<slug>_stub.json`: приложение запускается и показывает данные до появления реального бэкенда, а разбор ответа не привязан к конкретной форме JSON — при отсутствии распознаваемого `id` сохраняется весь ответ. Android сливает ассеты всех модулей в приложение, поэтому заглушка остаётся рядом с фичей, а читает её общий модуль `common:data`. Ошибка в состоянии — типизированная: `error: <Фича>Error?` со значениями `Unknown` и `Network`, а не текст исключения. Начальный экран не предлагает кнопку возврата: back stack в этой точке в основании, и системный жест закрывает приложение. Имена строковых ресурсов фичи включают её слаг (`feature_home_title`), иначе две фичи объявили бы одинаковый `feature_title`, и при слиянии ресурсов победила бы одна из них.
+Navigation is built on Navigation 3. `:core:navigation` defines the typed route contract (`AppRoute`), a navigator that is the single place where the back stack changes, and navigation state that survives configuration changes and process death. Routes are declared as `@Serializable` objects implementing `AppRoute`, so the back stack is restored without string constants. `app:navigation` only assembles the graph from tabs: the project has no app-owned destination, because every screen arrives from a feature module.
 
-Слаг `home` зарезервирован под начальный экран: `add-feature home` отклоняется. Для своей фичи с похожим именем используйте, например, `home-settings`.
+The data chain is offline-first and identical for every feature. A data source is split into `loadLocal()` (cache in Preferences DataStore), `loadRemote()` and `saveLocal()`; a repository loads remote data, saves it to the cache, and on failure returns the cache — it propagates the error only when there is no cache either. The starting screen shows a centered greeting and a value from the stub `feature/<slug>/src/main/assets/<slug>_stub.json`: the app starts and shows data before a real backend exists, and parsing the response is not tied to a specific JSON shape — when no recognisable `id` is present, the whole response is kept. Android merges the assets of every module into the app, so the stub stays next to its feature while the shared `common:data` module reads it. An error in the state is typed: `error: <Feature>Error?` with the values `Unknown` and `Network`, never an exception message. The starting screen offers no back button: the back stack is at its root there, and the system gesture closes the app. Feature string resource names include the feature slug (`feature_home_title`), otherwise two features would declare the same `feature_title` and one of them would win the resource merge.
 
-Android baseline: `compileSdk 37`, `targetSdk 36`, `minSdk 24`, Java/Kotlin toolchain 21, AGP `9.4.1`. Gradle Wrapper поставляется вместе с шаблоном. Release-вариант приложения собирается с минификацией кода и сжатием ресурсов; правила ProGuard лежат в `app/proguard-rules.pro`, поэтому Koin, Navigation 3 и Orbit MVI не требуют ручных записей.
+The slug `home` is reserved for the starting screen: `add-feature home` is rejected. For a similar feature of your own, use something like `home-settings`.
 
-## Установка
+Android baseline: `compileSdk 37`, `targetSdk 36`, `minSdk 24`, Java/Kotlin toolchain 21, AGP `9.4.1`. The Gradle Wrapper ships with the template. The release variant of the app is built with code shrinking and resource shrinking; the ProGuard rules live in `app/proguard-rules.pro`, so Koin, Navigation 3 and Orbit MVI need no manual entries.
 
-Для локальной разработки из корня репозитория:
+## Installation
+
+For local development from the repository root:
 
 ```sh
 pipx install -e .
 ```
 
-Редактируемая установка связывает окружение с рабочим деревом, поэтому изменения Python-кода и шаблона видны сразу, без переустановки. Обычная установка `pipx install .` копирует файлы в окружение, и после правки шаблона её нужно повторять — иначе команда продолжает работать по старой копии. Для работы над генератором используйте редактируемую, для публикации пакета — обычную.
+An editable install links the environment to the working tree, so changes to the Python code and the template are visible immediately, without reinstalling. A regular `pipx install .` copies the files into the environment, and after editing the template it has to be repeated — otherwise the command keeps running from the old copy. Use the editable install to work on the generator, and the regular one to publish the package.
 
-После публикации пакета в выбранном Python package index:
+After the package is published to the chosen Python package index:
 
 ```sh
 pipx install android-skeleton
 ```
 
-## Создание проекта
+The package and CLI are named `android-skeleton`, while the GitHub repository is named `android-generator`: these are two different names for the same project, and the version check reads the repository address from the metadata of the installed package.
 
-`create` создаёт проект только в текущем пустом каталоге. Существующие файлы, включая скрытые, приводят к отказу; перезапись не поддерживается.
+## Creating a project
+
+`create` generates a project only in the current empty directory. Existing files, including hidden ones, cause a refusal; overwriting is not supported.
 
 ```sh
 mkdir weather-app
@@ -40,9 +44,9 @@ android-skeleton create \
   --application-id com.example.weather
 ```
 
-Если `--name` не задан, имя Gradle-проекта и label приложения берутся из имени текущего каталога. `--package` задаёт Kotlin/Android namespace, а `--application-id` — идентификатор Android-приложения; оба параметра обязательны.
+When `--name` is not given, the Gradle project name and the app label are taken from the current directory name. `--package` sets the Kotlin/Android namespace and `--application-id` sets the Android application id; both are required.
 
-### Дополнительные параметры
+### Additional options
 
 ```sh
 mkdir field-notes
@@ -59,49 +63,49 @@ android-skeleton create \
   --verify
 ```
 
-- `--name` задаёт имя Gradle-проекта и label приложения.
-- `--network` добавляет `core:network` с Ktor client, JSON content negotiation, явными таймаутами и Koin module. Base URL, аутентификация и request logging не настраиваются; клиент не выбрасывает исключение на неуспешный ответ сам, а передаёт ответ вызывающему коду. Флаг также добавляет `INTERNET` permission.
-- `--locale` принимает повторяемые BCP-47 теги, например `ru-RU` или `uz-Latn-UZ`. CLI нормализует регистр и убирает дубликаты, создаёт Android resource qualifiers и `locale_config.xml`. Без выбранных локалей эти файлы и manifest attribute не добавляются.
-- `--git-init` выполняет `git init` после успешной генерации файлов.
-- `--sdk-dir` записывает расположение Android SDK в `local.properties` проекта. Файл машинно-зависим и не попадает в систему контроля версий.
-- `--verify` запускает `./gradlew build --no-daemon` после генерации. Нужны настроенное расположение SDK, установленные SDK packages и принятые Android SDK licenses. При ошибке Gradle CLI возвращает ненулевой код и сохраняет сгенерированный проект.
-- `--force` не влияет на генерацию и существует ради одной проверки: он позволяет создать фичу в проекте, чей шаблон этой версии CLI не обслуживает (см. «Проверка версий»).
+- `--name` sets the Gradle project name and the app label.
+- `--network` adds `core:network` with a Ktor client, JSON content negotiation, explicit timeouts and a Koin module. Base URL, authentication and request logging are not configurable; the client does not throw on an unsuccessful response by itself, it passes the response to the calling code. The flag also adds the `INTERNET` permission.
+- `--locale` accepts repeatable BCP-47 tags, for example `ru-RU` or `uz-Latn-UZ`. The CLI normalizes the case and removes duplicates, creating Android resource qualifiers and `locale_config.xml`. Without selected locales neither those files nor the manifest attribute are added.
+- `--git-init` runs `git init` after the files have been generated successfully.
+- `--sdk-dir` writes the Android SDK location into the project's `local.properties`. The file is machine-dependent and is not kept under version control.
+- `--verify` runs `./gradlew build --no-daemon` after generation. It needs a configured SDK location, installed SDK packages and accepted Android SDK licenses. On a Gradle failure the CLI returns a non-zero exit code and keeps the generated project.
+- `--force` does not affect generation and exists for exactly one check: it allows creating a feature in a project whose template this version of the CLI does not support (see "Version checks").
 
-Отдельного флага для `core:datastore` нет: модуль входит в состав каждого проекта, потому что на нём держится локальный кэш офлайн-цепочки данных. Флаг `--datastore` удалён вместе с шаблоном `1.1.0`.
+There is no separate flag for `core:datastore`: the module is part of every project, because the local cache of the offline data chain is built on it. The `--datastore` flag was removed together with template `1.1.0`.
 
-Доступные параметры можно посмотреть через `android-skeleton create --help`.
+Available options can be listed with `android-skeleton create --help`.
 
-## Добавление feature-модуля
+## Adding a feature module
 
-Команда поддерживает только проекты, созданные совместимой версией `android-skeleton` и содержащие корректный `.android-skeleton.json`. Она принимает lowercase kebab-case slug, отказывает при конфликте имени или изменённой структуре обязательных Gradle/Koin-файлов и отклоняет зарезервированный слаг `home` с сообщением о том, что он занят начальным экраном.
+The command only supports projects created by a compatible version of `android-skeleton` that contain a valid `.android-skeleton.json`. It accepts a lowercase kebab-case slug, refuses on a name conflict or a changed structure of the mandatory Gradle/Koin files, and rejects the reserved slug `home` with a message saying it is taken by the starting screen.
 
-Сначала можно посмотреть полный план без записи:
+You can inspect the full plan without writing anything first:
 
 ```sh
 android-skeleton add-feature user-profile --dry-run
 android-skeleton add-feature user-profile
 ```
 
-Для `user-profile` генератор создаёт `feature:user-profile` со слоем `presentation` и пакетом `di`, а также отдельный `feature:user-profile-api`. Модель, интерфейс репозитория и use case попадают в `common:domain/src/main/kotlin/<package>/domain/userprofile/`, а источник данных, его реализация и реализация репозитория — в `common:data/src/main/kotlin/<package>/data/userprofile/`; в feature-модуле остаются ViewModel, состояние с типизированной ошибкой, экран, DI-регистрации и заглушка `user-profile_stub.json`. Реализация источника данных читает заглушку через `Context` и кэширует модель в DataStore, поэтому фича работает офлайн сразу после генерации. API-модуль содержит только маршрут `UserProfile` как `@Serializable`-объект, реализующий `AppRoute`; состояние, ViewModel и Compose-типы остаются внутри feature. Вместе с фичей создаются юнит-тесты ViewModel (в feature-модуле) и репозитория (в `common:data`, рядом с проверяемой реализацией), которые выполняются на JUnit Platform. Имена строковых ресурсов получают префикс из слага фичи (`feature_user_profile_title`), потому что ресурсы всех feature-модулей сливаются в приложение и одноимённые строки перекрыли бы друг друга. Экран фичи рисует кнопку «Назад»; для назначения, из которого нельзя уйти назад, передайте `onBack = null`, и кнопка не отрисуется. Gradle settings, зависимости приложения и Koin wiring обновляются автоматически. Перед применением CLI проверяет целевые пути и регистрации; существующие файлы не перезаписываются, а ошибка записи приводит к откату уже применённых изменений.
+For `user-profile` the generator creates `feature:user-profile` with a `presentation` layer and a `di` package, plus a separate `feature:user-profile-api`. The model, the repository interface and the use case go to `common:domain/src/main/kotlin/<package>/domain/userprofile/`, and the data source, its implementation and the repository implementation go to `common:data/src/main/kotlin/<package>/data/userprofile/`. The feature module keeps the ViewModel, the state with the typed error, the screen, the DI registrations and the `user-profile_stub.json` stub. The data source implementation reads the stub through `Context` and caches the model in DataStore, so the feature works offline right after generation. The API module contains only the `UserProfile` route as an `@Serializable` object implementing `AppRoute`; state, ViewModel and Compose types stay inside the feature. Unit tests for the ViewModel (in the feature module) and for the repository (in `common:data`, next to the implementation under test) are created along with the feature and run on the JUnit Platform. Feature string resource names get a prefix from the feature slug (`feature_user_profile_title`), because the resources of all feature modules are merged into the app and identically named strings would overwrite each other. The feature screen draws a "Back" button; for a destination that cannot go back, pass `onBack = null` and no button is drawn. Gradle settings, app dependencies and Koin wiring are updated automatically. Before applying anything the CLI checks the target paths and the registrations; existing files are never overwritten, and a write error rolls back the changes already applied.
 
-Генератор не меняет исходники приложения. Фича экспортирует вкладку навигации `userProfileSection` — это значение типа установщика, а не функция, поэтому в список добавляется `add(userProfileSection)`; вызов `add(userProfileSection())` передал бы в список `Unit`. CLI печатает готовый фрагмент кода: импорт и добавление вкладки в запоминаемый список установщиков в точке входа. Разработчик вставляет его сам. `START_ROUTE` уже указывает на сгенерированный начальный экран, поэтому выбирать стартовый экран не нужно; если проект должен открываться с другой фичи, поменяйте `START_ROUTE` и `TOP_LEVEL_ROUTES` в `app:navigation/src/main/kotlin/<package>/navigation/AppRoutes.kt`. `--dry-run` показывает создаваемые файлы, обновляемые файлы, интеграции и этот фрагмент без изменения проекта.
+The generator does not touch the application sources. The feature exports the navigation tab `userProfileSection` — that is a value of the installer type, not a function, so the list receives `add(userProfileSection)`; a call to `add(userProfileSection())` would pass `Unit` to the list. The CLI prints a ready-made code fragment: the import and the tab addition at the entry point of the installer list. The developer inserts it manually. `START_ROUTE` already points at the generated starting screen, so there is nothing to choose; if the project has to open on another feature, change `START_ROUTE` and `TOP_LEVEL_ROUTES` in `app:navigation/src/main/kotlin/<package>/navigation/AppRoutes.kt`. `--dry-run` shows the created files, the updated files, the integrations and that fragment without changing the project.
 
-Флаг `--verify` работает и у `add-feature`: после записи файлов CLI запускает сборку проекта и сообщает о результате. При ошибке сборки сгенерированная фича сохраняется. `--sdk-dir` у обеих команд записывает расположение SDK в `local.properties` существующего проекта.
+The `--verify` flag works for `add-feature` too: after writing the files the CLI runs the project build and reports the result. On a build failure the generated feature is kept. `--sdk-dir` writes the SDK location into `local.properties` of an existing project for both commands.
 
 ## Android SDK
 
-Сборка требует Android SDK. CLI определяет его расположение в том же порядке, что и Android Gradle Plugin: `ANDROID_HOME`, затем `ANDROID_SDK_ROOT`, затем `sdk.dir` из `local.properties` проекта. Каталог считается SDK только если содержит `platforms` или `platform-tools`, поэтому ошибочно заданная переменная отлавливается до сборки, а не внутри неё.
+Building requires the Android SDK. The CLI determines its location in the same order as the Android Gradle Plugin: `ANDROID_HOME`, then `ANDROID_SDK_ROOT`, then `sdk.dir` from the project's `local.properties`. A directory counts as an SDK only if it contains `platforms` or `platform-tools`, so a wrong variable is caught before the build instead of inside it.
 
-Перед проверкой сборки CLI также убеждается, что в SDK есть платформы под объявленный в шаблоне `compileSdk`. Проверка выполняется до запуска Gradle: если SDK не настроен или в нём не хватает платформы, CLI сообщает причину и способ её устранения вместо вывода Gradle.
+Before a build check the CLI also makes sure the SDK has the platforms for the `compileSdk` declared in the template. The check runs before Gradle starts: if the SDK is not configured or a platform is missing, the CLI reports the reason and how to fix it instead of printing Gradle output.
 
-Указать расположение можно тремя способами:
+There are three ways to point at the SDK:
 
-- **Флагом `--sdk-dir`** — работает с любой оболочкой и записывает выбор в проект, поэтому решение видно и в сообщениях, и в самом проекте:
+- **The `--sdk-dir` flag** — works with any shell and stores the choice in the project, so the decision is visible both in messages and in the project itself:
   ```sh
   android-skeleton create --package com.example.weather \
     --application-id com.example.weather --sdk-dir /path/to/sdk
   ```
-- **Переменной окружения** — подходит, если SDK один на все проекты:
+- **An environment variable** — suits the case when there is a single SDK for all projects:
   ```sh
   # zsh
   echo 'export ANDROID_HOME=/path/to/sdk' >> ~/.zshrc
@@ -110,42 +114,46 @@ android-skeleton add-feature user-profile
   # fish
   echo 'set -x ANDROID_HOME /path/to/sdk' >> ~/.config/fish/config.fish
   ```
-  После этого нужен новый терминал: текущий уже запущен и переменную не подхватит.
-- **Вручную** — строкой `sdk.dir=/path/to/sdk` в `local.properties` проекта.
+  A new terminal is needed afterwards: the current one is already running and will not pick up the variable.
+- **Manually** — a `sdk.dir=/path/to/sdk` line in the project's `local.properties`.
 
-CLI не выбирает SDK за вас: на машине их может быть несколько, а они не равнозначны. При отсутствии настроек он перечисляет найденные варианты, в том числе восстановленный из положения `adb` в `PATH`, — это типичная картина машины, где утилиты доступны, а переменные не заданы. Если SDK не установлен, CLI предлагает поставить утилиты командной строки; Android Studio для этого не требуется. Без `--verify` CLI ограничивается коротким предупреждением и генерация проходит.
+The CLI does not choose an SDK for you: a machine can have several, and they are not equivalent. When nothing is configured it lists the variants it found, including one recovered from the location of `adb` in `PATH` — that is the typical picture of a machine where the utilities are available but the variables are not set. If no SDK is installed, the CLI offers to install the command line tools; Android Studio is not required for that. Without `--verify` the CLI limits itself to a short warning and generation goes through.
 
-## Проверка версий
+## Version checks
 
-`create` до генерации печатает версию установленного CLI и версию его шаблона, чтобы результат генерации был однозначно привязан к известной версии:
+Before generating, `create` prints the version of the installed CLI and the version of its template, so that the result of generation is unambiguously tied to a known version:
 
 ```
 android-skeleton 0.3.0 (Android template 1.2.0)
 Created Android project 'weather-app' in /home/you/weather-app
 ```
 
-Дальше CLI сверяет установленную версию с четырьмя источниками:
+The CLI then compares the installed version with four sources:
 
-| Источник | Что сравнивается | Нужна сеть |
+| Source | What is compared | Network needed |
 |---|---|---|
-| Собственные константы | версия шаблона в коде, в манифесте и требуемая версия CLI | нет |
-| Рабочее дерево | версия в исходниках против версии, записанной при установке | нет |
-| Релиз на GitHub | последний тег релиза репозитория | да |
-| Индекс пакетов | опубликованная версия пакета | да |
+| Own constants | the template version in the code, in the manifest and the required CLI version | no |
+| Working tree | the version in the sources against the version recorded at install time | no |
+| GitHub release | the latest release tag of the repository | yes |
+| Package index | the published version of the package | yes |
 
-Расхождение по любому из них печатается как предупреждение с обеими версиями и командой обновления, и генерация продолжается. Если внешний источник недоступен, выводится одна строка о том, что подтвердить актуальность не удалось, — работа это не блокирует, но без сети генерация занимает на несколько секунд больше.
+A mismatch on any of them is printed as a warning with both versions and an update command, and generation continues. When an external source is unavailable, a single line says that the currency could not be confirmed — this does not block work, but without network generation takes a few seconds longer.
 
-Сверка с рабочим деревом выполняется только когда пакет установлен из исходников: у обычной копии файлов рабочего дерева нет, и проверять нечего.
+The comparison with the working tree only runs when the package is installed from sources: a regular copy of the files has no working tree to compare against.
 
-Отказ — единственное, что останавливает работу. Он возникает в `add-feature`, когда версия шаблона проекта не совпадает с версией установленного CLI: файлы фичи оказались бы там, где сборка их не ждёт. CLI называет обе версии и предлагает пересоздать проект либо передать `--force`:
+A refusal is the only thing that stops the work. It happens in `add-feature`, when the project template version does not match the installed CLI version: the feature files would end up where the build does not expect them. The CLI names both versions and offers to recreate the project or to pass `--force`:
 
 ```
 android-skeleton: error: This project was created by template 1.1.0, but the installed
 android-skeleton 0.3.0 ships template 1.2.0.
 ```
 
-## Версии шаблона
+## Template versions
 
-Android template поставляется внутри Python-пакета в `src/android_skeleton/templates/`. Версия CLI находится в `pyproject.toml`, версия шаблона — в `manifest.json`. Созданный проект сохраняет версии CLI и template, параметры проекта, выбранные опции и список features в `.android-skeleton.json`; `add-feature` использует эти metadata для проверки совместимости. Список features начинается со слага `home` — именно поэтому повторное добавление фичи с этим именем отклоняется.
+The Android template ships inside the Python package in `src/android_skeleton/templates/`. The CLI version lives in `pyproject.toml`, the template version in `manifest.json`. A created project records the CLI and template versions, the project parameters, the selected options and the list of features in `.android-skeleton.json`; `add-feature` uses that metadata to check compatibility. The features list starts with the slug `home` — that is why adding a feature with that name again is rejected.
 
-Проекты, созданные шаблоном `1.0.0` и `1.1.0`, больше не поддерживаются: `add-feature` отказывает им с сообщением о несовместимости версии. В `1.2.0` слои `domain` и `data` переехали из feature-модулей в `common:domain` и `common:data`, а `:core:datastore` стал обязательным, поэтому перенос существующего проекта вручную затрагивает и структуру модулей. Автоматической миграции нет.
+Projects created by templates `1.0.0` and `1.1.0` are no longer supported: `add-feature` refuses them with an incompatibility message. In `1.2.0` the `domain` and `data` layers moved from feature modules into `common:domain` and `common:data`, and `:core:datastore` became mandatory, so moving an existing project over by hand also touches its module structure. There is no automatic migration.
+
+## License
+
+The project is distributed under the MIT License: [LICENSE](LICENSE).
