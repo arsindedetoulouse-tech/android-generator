@@ -16,8 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -42,6 +42,8 @@ jobs:
         run: python -m twine check dist/*
 
       - name: Upload to PyPI
-        # No API token is stored anywhere: PyPI issues a short-lived token for this workflow,
-        # this repository and this environment in exchange for the OIDC identity of the run.
-        run: python -m twine upload --trusted-publishing always dist/*
+        # No API token is stored anywhere: twine finds the ambient OIDC token of this run, exchanges
+        # it for a short-lived PyPI token scoped to this repository, workflow and environment, and
+        # uploads with it. There is nothing to switch on, so there is no flag to pass either.
+        # `--non-interactive` keeps a failed exchange from turning into a credential prompt.
+        run: python -m twine upload --non-interactive dist/*
